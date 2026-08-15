@@ -1,21 +1,136 @@
 ---
+import { getCollection } from 'astro:content';
 import BaseHead from '../components/BaseHead.astro';
 import Footer from '../components/Footer.astro';
+import FormattedDate from '../components/FormattedDate.astro';
 import Header from '../components/Header.astro';
 import { SITE_DESCRIPTION, SITE_TITLE } from '../consts';
+
+const posts = (await getCollection('blog')).sort(
+	(a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf(),
+);
 ---
 
 <!doctype html>
-<html lang="en">
+<html lang="ja">
 	<head>
 		<BaseHead title={SITE_TITLE} description={SITE_DESCRIPTION} />
 	</head>
 	<body>
 		<Header />
 		<main>
-			<p>
-				高いお金を払って出展するからには成果を上げたい。その思いに応えるのが私たちです。
-			</p>
+			<div class="hero">
+				<div class="hero-in">
+					<h1>
+						<span class="q">「</span>高いお金を払って出展するからには、成果を上げたい。」<br />
+						その思いに応えるのが、私たちです。
+					</h1>
+					<p class="sub">
+						商談会で成果を出すための型を、レンタル備品と設営設計にのせてお届けします。
+					</p>
+					<a class="go" href="#lending">セットの内容を見る</a>
+					<div class="meta">
+						対応：食品商談会／DX・IT展示会　－　初出展の企業からご利用いただけます
+					</div>
+				</div>
+			</div>
+
+			<div class="block" id="lending">
+				<div class="block-in">
+					<div class="bhead">
+						<div class="blabel">01　貸しているもの</div>
+						<div class="btitle">貸しているのは、<br />備品ではありません</div>
+					</div>
+					<div class="bbody">
+						<p class="pull">出展者が借りるのは、成果が出るブースの型です。</p>
+						<div class="btext">
+							<p>
+								ライトを借りても、木箱を置いても、それだけでは何も変わりません。記事を読んでも、どこに置けばいいかまでは分かりません。情報だけでは、行動につながらないからです。
+							</p>
+							<p>
+								だから、説明しなくても成果が出る道具をつくっています。ひな壇には商品の並べ方が刻まれ、ライトの裏面には食品ごとの照射位置が書かれています。箱を開ける順番が、そのまま設営の順番になっています。
+							</p>
+						</div>
+					</div>
+				</div>
+			</div>
+
+			<div class="block">
+				<div class="block-in">
+					<div class="bhead">
+						<div class="blabel">02　通路からの見え方</div>
+						<div class="btitle">バイヤーが見ている<br />4つのこと</div>
+					</div>
+					<div class="bbody">
+						<div class="pt">
+							<h3>高さ</h3>
+							<p>
+								バイヤーの目線は150〜160cm。支給テーブルは70cm前後です。平置きした商品は視界の下端にあり、真正面に立たない限り見えていません。
+							</p>
+						</div>
+						<div class="pt">
+							<h3>光</h3>
+							<p>
+								会場の全体照明は均一で、商品に影ができません。影がなければ立体感も出ません。照らすべきはブース全体ではなく、主力商品の一点です。
+							</p>
+						</div>
+						<div class="pt">
+							<h3>文字数</h3>
+							<p>
+								歩きながら読めるのは、ごく短い言葉だけです。社名では立ち止まりません。知らない会社だからです。原材料もこだわりも、足を止めてもらった後の道具です。
+							</p>
+						</div>
+						<div class="pt">
+							<h3>売場の再現</h3>
+							<p>
+								バイヤーが頭の中でしているのは、自分の店の棚に並べる想像です。展示会らしく整えるより、店頭に近い並べ方のほうが、想像の手間が減ります。
+							</p>
+						</div>
+					</div>
+				</div>
+			</div>
+
+			<div class="block dark">
+				<div class="block-in">
+					<div class="bhead">
+						<div class="blabel">03　設営</div>
+						<div class="btitle">箱を開けた順に、<br />設営が進む</div>
+					</div>
+					<div class="bbody">
+						<div class="st"><div class="n">一</div><div class="t">テーブルクロスを敷く</div></div>
+						<div class="st"><div class="n">二</div><div class="t">ひな壇を置いて、高さをつくる</div></div>
+						<div class="st"><div class="n">三</div><div class="t">主力商品を目線の高さに置く</div></div>
+						<div class="st"><div class="n">四</div><div class="t">ライトを主力商品に向ける</div></div>
+						<div class="st"><div class="n">五</div><div class="t">POPを立てる</div></div>
+						<div class="st key"><div class="n">六</div><div class="t">3m離れて、通路から確認する</div></div>
+						<p class="dnote">
+							最後の六番目が、いちばん重要です。設営中はずっとブースの内側にいるため、バイヤーが見る角度からブースを見ていません。通路に出て3m離れると、文字が読めない、商品が暗いといったことが一目で分かります。
+						</p>
+					</div>
+				</div>
+			</div>
+
+			<div class="block">
+				<div class="block-in">
+					<div class="bhead">
+						<div class="blabel">04　読みもの</div>
+						<div class="btitle">記事</div>
+					</div>
+					<div class="bbody">
+						{
+							posts.map((post) => (
+								<a class="post" href={`/blog/${post.id}/`}>
+									<div class="d">
+										<FormattedDate date={post.data.pubDate} />
+									</div>
+									<h3>{post.data.title}</h3>
+									<p>{post.data.description}</p>
+								</a>
+							))
+						}
+					</div>
+				</div>
+			</div>
 		</main>
 		<Footer />
 	</body>
