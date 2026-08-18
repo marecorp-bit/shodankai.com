@@ -124,10 +124,16 @@ b {
 	line-height: 1.72;
 	letter-spacing: -0.01em;
 	max-width: 16em;
+	word-break: auto-phrase;
+	text-wrap: balance;
 }
 
 .hero h1 .q {
 	margin-left: -0.5em;
+}
+
+.hero-break {
+	display: none;
 }
 
 .hero .sub {
@@ -515,6 +521,10 @@ b {
 	.hero h1 {
 		font-size: 2.5rem;
 		line-height: 1.62;
+		max-width: 22em;
+	}
+	.hero-break {
+		display: inline;
 	}
 	.hero .sub {
 		font-size: 1.02rem;
