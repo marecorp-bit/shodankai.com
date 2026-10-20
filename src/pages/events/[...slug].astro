@@ -1,0 +1,166 @@
+---
+import { render } from 'astro:content';
+import BaseHead from '../../components/BaseHead.astro';
+import Footer from '../../components/Footer.astro';
+import Header from '../../components/Header.astro';
+import { SITE_TITLE } from '../../consts';
+import { KIT_CTA, kitFor } from '../../data/kit';
+import {
+	buildSchedule,
+	type EventEntry,
+	fmtDate,
+	fmtPeriod,
+	fmtShort,
+	getPublishedEvents,
+	isoDate,
+	MIN_BODY_CHARS,
+} from '../../lib/events';
+
+export async function getStaticPaths() {
+	const events = await getPublishedEvents();
+	for (const e of events) {
+		const len = (e.body ?? '').replace(/\s/g, '').length;
+		if (len < MIN_BODY_CHARS) {
+			throw new Error(
+				`展示会ページ「${e.id}」の本文が短すぎます（${len}字／最低${MIN_BODY_CHARS}字）。開催情報を写しただけのページは公開しません。docs/展示会ページの書き方.md を参照してください。`,
+			);
+		}
+	}
+	return events.map((entry) => ({ params: { slug: entry.id }, props: entry }));
+}
+
+type Props = EventEntry;
+const entry = Astro.props;
+const d = entry.data;
+const { Content } = await render(entry);
+const schedule = buildSchedule(d);
+const kit = kitFor(d.industry);
+const title = `${d.name}の出展準備｜締切と日程の逆算・必要な備品 | ${SITE_TITLE}`;
+
+const host = (u: string) => {
+	try {
+		return new URL(u).hostname;
+	} catch {
+		return u;
+	}
+};
+
+const jsonLd = {
+	'@context': 'https://schema.org',
+	'@type': 'Event',
+	name: d.name,
+	startDate: isoDate(d.eventStart),
+	...(d.eventEnd ? { endDate: isoDate(d.eventEnd) } : {}),
+	eventAttendanceMode: 'https://schema.org/OfflineEventAttendanceMode',
+	...(d.venue
+		? {
+				location: {
+					'@type': 'Place',
+					name: d.venue,
+					...(d.prefecture
+						? { address: { '@type': 'PostalAddress', addressRegion: d.prefecture, addressCountry: 'JP' } }
+						: {}),
+				},
+			}
+		: {}),
+	...(d.organizer ? { organizer: { '@type': 'Organization', name: d.organizer } } : {}),
+	url: d.officialUrl,
+};
+---
+
+<!doctype html>
+<html lang="ja">
+	<head>
+		<BaseHead title={title} description={d.description} />
+		<script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
+	</head>
+	<body>
+		<Header />
+		<main>
+			<article class="post-article event-page">
+				<div class="article-title">
+					<div class="date">
+						展示会・商談会　／　更新日 <time datetime={isoDate(d.updatedDate)}>{fmtDate(d.updatedDate, false)}</time>
+					</div>
+					<h1>{d.name}</h1>
+					<p class="ev-lead">{d.description}</p>
+				</div>
+
+				<section class="ev-section">
+					<h2 class="ev-h">開催情報</h2>
+					<dl class="ev-info">
+						<dt>開催日</dt>
+						<dd>{fmtPeriod(d.eventStart, d.eventEnd)}</dd>
+						{d.venue && (<><dt>会場</dt><dd>{d.venue}{d.prefecture && `（${d.prefecture}）`}</dd></>)}
+						{d.organizer && (<><dt>主催</dt><dd>{d.organizer}</dd></>)}
+						{d.exhibitors && (<><dt>出展者</dt><dd>{d.exhibitors}</dd></>)}
+						{d.applicationDeadline && (<><dt>出展申込締切</dt><dd><strong>{fmtDate(d.applicationDeadline)}</strong></dd></>)}
+						{d.fee && (<><dt>出展料</dt><dd>{d.fee}</dd></>)}
+						<dt>公式ページ</dt>
+						<dd><a href={d.officialUrl} rel="noopener" target="_blank">{host(d.officialUrl)}</a></dd>
+					</dl>
+					<p class="ev-notice">
+						最新の情報は必ず<a href={d.officialUrl} rel="noopener" target="_blank">公式ページ</a>でご確認ください。このページの内容は
+						{fmtDate(d.verifiedAt, false)}時点で公式ページを確認したものです。
+					</p>
+				</section>
+
+				<section class="ev-section">
+					<h2 class="ev-h">準備の日程（逆算の目安）</h2>
+					<p class="ev-sub">
+						{d.applicationDeadline ? '出展申込の締切と開催日から' : '開催日から'}逆算した目安です。灰色の行は、日付がすでに過ぎたものです。
+					</p>
+					<ol class="ev-schedule">
+						{schedule.map((s) => (
+							<li class:list={['ev-step', { fixed: s.fixed }]} data-date={isoDate(s.date)}>
+								<div class="ev-step-date">{fmtShort(s.date)}</div>
+								<div class="ev-step-body">
+									<div class="ev-step-label">{s.label}</div>
+									<p>{s.detail}</p>
+								</div>
+							</li>
+						))}
+					</ol>
+				</section>
+
+				<section class="ev-section prose ev-notes">
+					<h2 class="ev-h">この展示会の準備のポイント</h2>
+					<Content />
+				</section>
+
+				<section class="ev-section">
+					<h2 class="ev-h">この展示会で必要になりそうな備品</h2>
+					<p class="ev-sub">{kit.lead}</p>
+					<ul class="ev-kit">
+						{kit.items.map((k) => (
+							<li>
+								<div class="ev-kit-name">{k.name}</div>
+								<p>{k.why}</p>
+							</li>
+						))}
+					</ul>
+					<a class="ev-cta" href={KIT_CTA.href}>{KIT_CTA.label}</a>
+				</section>
+
+				<section class="ev-section ev-foot">
+					<p>
+						確認に使ったページ：
+						{d.sources.map((u, i) => (
+							<>{i > 0 && '、'}<a href={u} rel="noopener" target="_blank">{host(u)}</a></>
+						))}
+					</p>
+					<p><a href="/events/">展示会・商談会の一覧へ戻る</a></p>
+				</section>
+			</article>
+		</main>
+		<Footer />
+		<script is:inline>
+			(function () {
+				var n = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10);
+				document.querySelectorAll('.ev-step[data-date]').forEach(function (el) {
+					if (el.getAttribute('data-date') < n) el.classList.add('past');
+				});
+			})();
+		</script>
+	</body>
+</html>

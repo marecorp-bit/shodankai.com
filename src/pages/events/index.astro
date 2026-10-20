@@ -1,0 +1,99 @@
+---
+import BaseHead from '../../components/BaseHead.astro';
+import Footer from '../../components/Footer.astro';
+import Header from '../../components/Header.astro';
+import { SITE_TITLE } from '../../consts';
+import {
+	type EventEntry,
+	fmtDate,
+	fmtPeriod,
+	getPublishedEvents,
+	isoDate,
+	sortForListing,
+} from '../../lib/events';
+
+const { open, rest } = sortForListing(await getPublishedEvents());
+const description =
+	'食品・DX/ITの展示会・商談会を、出展申込の締切が近い順にまとめています。締切と開催日から逆算した準備の日程と、必要になりそうな備品も各ページに載せています。';
+
+const endOf = (e: EventEntry) => isoDate(e.data.eventEnd ?? e.data.eventStart);
+---
+
+<!doctype html>
+<html lang="ja">
+	<head>
+		<BaseHead title={`展示会・商談会の出展締切一覧 | ${SITE_TITLE}`} description={description} />
+	</head>
+	<body>
+		<Header />
+		<main>
+			<div class="hero">
+				<div class="hero-in">
+					<h1>展示会・商談会の出展締切</h1>
+					<p class="sub">{description}</p>
+					<div class="meta">掲載内容は公式ページで確認したものです。最新の情報は各公式ページでご確認ください。</div>
+				</div>
+			</div>
+
+			<div class="block">
+				<div class="block-in">
+					<div class="bhead">
+						<div class="blabel">01　出展申込を受付中</div>
+						<div class="btitle">締切の近い順</div>
+					</div>
+					<div class="bbody">
+						{open.length === 0 && <p class="btext">いま掲載している中に、申込を受け付けている展示会はありません。</p>}
+						{
+							open.map((e) => (
+								<a class="post ev-row" href={`/events/${e.id}/`} data-end={endOf(e)} data-deadline={isoDate(e.data.applicationDeadline!)}>
+									<div class="d">
+										<span class="ev-badge">締切 {fmtDate(e.data.applicationDeadline!)}</span>
+										　開催 {fmtPeriod(e.data.eventStart, e.data.eventEnd)}
+										{e.data.prefecture && `・${e.data.prefecture}`}
+									</div>
+									<h3>{e.data.name}</h3>
+									<p>{e.data.description}</p>
+								</a>
+							))
+						}
+					</div>
+				</div>
+			</div>
+
+			<div class="block">
+				<div class="block-in">
+					<div class="bhead">
+						<div class="blabel">02　出展が決まっている方へ</div>
+						<div class="btitle">開催の近い順</div>
+					</div>
+					<div class="bbody">
+						{rest.length === 0 && <p class="btext">掲載の準備をしています。</p>}
+						{
+							rest.map((e) => (
+								<a class="post ev-row" href={`/events/${e.id}/`} data-end={endOf(e)}>
+									<div class="d">
+										開催 {fmtPeriod(e.data.eventStart, e.data.eventEnd)}
+										{e.data.prefecture && `・${e.data.prefecture}`}
+									</div>
+									<h3>{e.data.name}</h3>
+									<p>{e.data.description}</p>
+								</a>
+							))
+						}
+					</div>
+				</div>
+			</div>
+		</main>
+		<Footer />
+		<script is:inline>
+			(function () {
+				var n = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10);
+				document.querySelectorAll('.ev-row[data-end]').forEach(function (el) {
+					if (el.getAttribute('data-end') < n) { el.remove(); return; }
+					var dl = el.getAttribute('data-deadline');
+					if (dl && dl < n) { var b = el.querySelector('.ev-badge'); if (b) { b.textContent = '申込締切済み'; b.classList.add('closed'); } }
+				});
+			})();
+		</script>
+	</body>
+</html>
