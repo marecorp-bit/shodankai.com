@@ -24,7 +24,7 @@ const READ_PREFIXES = ["search", "list", "get", "read", "fetch", "summarize"];
 // 書き込み系で許可するもの（下書きのみ）
 const DRAFT_TOOLS = ["create_draft", "update_draft", "create_or_update_draft"];
 // 読み取り接頭辞でも、以下の語を含むものは拒否（念のため）
-const DANGEROUS_WORDS = ["send", "forward", "delete", "trash", "filter", "reply_all", "schedule"];
+const DANGEROUS_WORDS = ["send", "forward", "reply", "delete", "trash", "filter", "spam", "label", "schedule"];
 
 function readStdin() {
   try {
