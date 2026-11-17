@@ -22,3 +22,7 @@ pnpm-debug.log*
 
 # jetbrains setting folder
 .idea/
+
+# MARE 営業エージェント：営業データ・送信者情報（公開リポジトリに含めない）
+sales/data/
+sales/config/sender.md
