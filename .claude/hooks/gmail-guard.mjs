@@ -144,7 +144,10 @@ function checkDraft(toolName, input) {
       const sameAddr = emails.includes(to);
       const sameDomain = !FREE.includes(domain) && emails.some((e) => e.split("@")[1] === domain);
       const allowFollowup = c.allow_followup === true;
-      if ((sameAddr || sameDomain) && !allowFollowup) {
+      // 同じ会社の記録済み下書きを、同じ宛先のまま更新する場合は重複ではない
+      const draftId = String(input.draftId || input.draft_id || "");
+      const updatingOwnDraft = !!draftId && sameAddr && (c.draft_ids || []).includes(draftId);
+      if ((sameAddr || sameDomain) && !allowFollowup && !updatingOwnDraft) {
         block(
           `重複アプローチの可能性: ${c.name}（状態: ${status}）に既に ${sameAddr ? "同一アドレス" : "同一ドメイン"}で接触記録があります。` +
             "フォローアップの場合は担当者の確認後、pipeline で allow_followup を true にしてください。",
