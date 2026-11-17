@@ -2,7 +2,8 @@
 // Gmail 安全ガード（PreToolUse / PostToolUse フック）
 //
 // 方針: Gmail系ツールは「許可リスト方式」。明示的に許可したツール以外は全てブロックする。
-//   - 送信・転送・削除・フィルタ作成などは、ツール名が何であっても許可リストに無い限り実行不可。
+//   - 転送・削除・フィルタ作成などは、ツール名が何であっても許可リストに無い限り実行不可。
+//   - send_message は送信ポリシー（非公開リポジトリ config/send-policy.json）に従う。既定 off。draftId 送信は常に禁止。
 //   - 下書き作成時は宛先・プレースホルダ残り・重複アプローチを検査する。
 //   - 全ての Gmail 系ツール呼び出しを sales/data/audit-log.jsonl に記録する。
 //
@@ -51,8 +52,8 @@ function block(reason, toolName, input) {
   audit({ phase: "pre", decision: "blocked", tool: toolName, reason, input: summarizeInput(input) });
   process.stderr.write(
     `[gmail-guard] ブロックしました: ${reason}\n` +
-      "このプロジェクトでは Gmail の送信・転送・削除は禁止されています。下書き保存のみ可能です。" +
-      "送信は担当者が Gmail 上で内容と宛先を確認してから手動で行ってください。\n"
+      "このプロジェクトでは Gmail の転送・削除は禁止、送信は送信ポリシー（mare-sales-data/config/send-policy.json）の範囲内のみ可能です。" +
+      "ブロックを回避しようとせず、担当者に報告してください。\n"
   );
   process.exit(2);
 }
@@ -180,7 +181,61 @@ if (mode === "post") {
   process.exit(0);
 }
 
+// ---- 送信ポリシー（非公開リポジトリ config/send-policy.json） ----
+// mode: "off"（既定・ファイル無し時も off）| "test"（許可リストの宛先にのみ送信可）
+// それ以外の値（将来の "live" 等）は未実装のためブロック（fail-closed）。
+function loadSendPolicy() {
+  const p = path.resolve(dataDir, "..", "config", "send-policy.json");
+  try {
+    return JSON.parse(fs.readFileSync(p, "utf8"));
+  } catch {
+    return { mode: "off" };
+  }
+}
+
+function sendsToday() {
+  try {
+    const today = new Date().toISOString().slice(0, 10);
+    return fs
+      .readFileSync(auditPath, "utf8")
+      .split("\n")
+      .filter((l) => l.includes('"decision":"allowed"') && l.includes("send_message") && l.includes(`"ts":"${today}`)).length;
+  } catch {
+    return 0;
+  }
+}
+
+function checkSend(toolName, input) {
+  const policy = loadSendPolicy();
+  if (policy.mode === "off") block("送信ポリシーが off です（config/send-policy.json）。送信は担当者が Gmail 上で行ってください。", toolName, input);
+  if (policy.mode !== "test") block(`送信ポリシーのモード "${policy.mode}" は未対応です。`, toolName, input);
+  // draftId 指定時は to/cc/bcc 等が無視され「下書きの宛先」にそのまま送信される。
+  // フックからは下書きの実際の宛先を検証できないため、draftId による送信は常にブロックする。
+  if (Object.keys(input).some((k) => /draft/i.test(k))) {
+    block("下書きID(draftId)指定の送信は禁止です（実際の宛先を検証できないため）。宛先・件名・本文を明示して送信してください。", toolName, input);
+  }
+  const allowed = (policy.allowed_recipients || []).map((a) => String(a).toLowerCase());
+  const rcpt = collectRecipients(input);
+  if (rcpt.to.length !== 1) block("送信の宛先(To)は1件のみです。", toolName, input);
+  if (rcpt.cc.length || rcpt.bcc.length) block("テスト送信では CC/BCC は使用できません。", toolName, input);
+  const to = rcpt.to[0].toLowerCase();
+  if (!STRICT_EMAIL_RE.test(to)) block(`宛先の形式が不正です: ${to}`, toolName, input);
+  if (!allowed.includes(to)) block(`テストモードでは許可リスト外の宛先には送信できません: ${to}`, toolName, input);
+  const prefix = policy.require_subject_prefix || "";
+  if (prefix && !String(input.subject || "").startsWith(prefix)) block(`テスト送信の件名は「${prefix}」で始めてください。`, toolName, input);
+  if (/\{\{[^}]*\}\}|【要記入】|＜要記入＞|TODO/.test(allText(input))) block("未記入のプレースホルダが残っています。", toolName, input);
+  if (input.attachments && input.attachments.length) block("テスト送信では添付ファイルは使用できません。", toolName, input);
+  const cap = Number(policy.max_sends_per_day || 0);
+  if (cap > 0 && sendsToday() >= cap) block(`本日の送信上限（${cap}件）に達しました。`, toolName, input);
+  return { to, mode: policy.mode };
+}
+
 // ---- PreToolUse 判定 ----
+if (shortName === "send_message") {
+  const r = checkSend(toolName, input);
+  audit({ phase: "pre", decision: "allowed", tool: toolName, to: [r.to], send_mode: r.mode, subject: String(input.subject || "").slice(0, 80) });
+  process.exit(0);
+}
 if (DANGEROUS_WORDS.some((w) => shortName.includes(w))) {
   block(`危険な操作（${shortName}）は禁止されています。`, toolName, input);
 }
