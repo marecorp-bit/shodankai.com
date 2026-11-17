@@ -8,6 +8,7 @@
 //   node sales/bin/pipeline.mjs followups [--days 14]    送信済みで返信なし・経過日数以上
 //   node sales/bin/pipeline.mjs due                      次回連絡予定日が今日以前
 //   node sales/bin/pipeline.mjs check-dup <email>        既存接触の確認
+//   node sales/bin/pipeline.mjs where                    データ保存先の表示
 //
 // 状態: researched → classified → draft_saved → sent → replied → meeting → won / lost
 //       （on_hold, followup_draft_saved も可）
@@ -18,7 +19,9 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const dataDir = path.resolve(here, "..", "data");
+// 営業データ: SALES_DATA_DIR > 隣接の非公開リポジトリ mare-sales-data/data > sales/data
+const sibling = path.resolve(here, "..", "..", "..", "mare-sales-data");
+const dataDir = process.env.SALES_DATA_DIR || (fs.existsSync(sibling) ? path.join(sibling, "data") : path.resolve(here, "..", "data"));
 const file = path.join(dataDir, "pipeline.json");
 const auditPath = path.join(dataDir, "audit-log.jsonl");
 
@@ -115,6 +118,10 @@ switch (cmd) {
     const rows = db.companies.filter((c) => c.next_contact_date && c.next_contact_date <= today() && !["won", "lost"].includes(c.status));
     console.log(`次回連絡予定日を過ぎた／今日: ${rows.length} 件`);
     rows.forEach((c) => console.log(row(c)));
+    break;
+  }
+  case "where": {
+    console.log(dataDir);
     break;
   }
   case "check-dup": {

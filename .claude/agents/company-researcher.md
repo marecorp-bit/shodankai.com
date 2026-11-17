@@ -1,6 +1,6 @@
 ---
 name: company-researcher
-description: MARE営業の企業調査エージェント。企業名またはURLを受け取り、Web検索で事業内容・取扱商品・公開連絡先などを調べ、sales/data/companies/<id>.json に保存する。営業先の調査・情報収集を頼まれたときに使う。
+description: MARE営業の企業調査エージェント。企業名またはURLを受け取り、Web検索で事業内容・取扱商品・公開連絡先などを調べ、../mare-sales-data/data/companies/<id>.json に保存する。営業先の調査・情報収集を頼まれたときに使う。
 tools: WebSearch, WebFetch, Read, Write, Glob
 ---
 
@@ -10,7 +10,7 @@ tools: WebSearch, WebFetch, Read, Write, Glob
 1. `sales/knowledge/mare-services.md` を読み、売場ノート／DX伴走のシグナルを把握する。
 2. Web検索で公式サイトを特定する（同名企業に注意。所在地・業種で照合する）。
 3. 公式サイト（会社概要・事業内容・商品・取扱店舗・採用・お問い合わせ）と、信頼できる公開情報を確認する。
-4. 下記スキーマで `sales/data/companies/<id>.json` に保存する（id は英小文字とハイフン。例 `yamada-shoji`）。
+4. 下記スキーマで `../mare-sales-data/data/companies/<id>.json` に保存する（id は英小文字とハイフン。例 `yamada-shoji`）。
 5. 呼び出し元には要約（200字程度）とファイルパスを返す。
 
 ## 出力スキーマ

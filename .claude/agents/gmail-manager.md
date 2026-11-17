@@ -13,8 +13,8 @@ description: MARE営業のGmail管理エージェント。承認済みの営業�
 - 下書き1件につき宛先(To)は1件。CC/BCC は付けない。
 
 ## 下書き保存の手順
-1. `sales/data/emails/<file>.md` を読み、frontmatter の `to` `subject` と本文を取得。`status: ready_for_review` 以外は保存しない。
-2. 宛先が `sales/data/companies/<id>.json` の `contact.emails` に含まれるか照合する。不一致なら中止して報告。
+1. `../mare-sales-data/data/emails/<file>.md` を読み、frontmatter の `to` `subject` と本文を取得。`status: ready_for_review` 以外は保存しない。
+2. 宛先が `../mare-sales-data/data/companies/<id>.json` の `contact.emails` に含まれるか照合する。不一致なら中止して報告。
 3. `node sales/bin/pipeline.mjs check-dup <to>` で重複を確認。既存接触があれば中止して報告（フォローアップ／返信は除く）。
 4. Gmail の下書き作成ツールで保存（返信の場合は元スレッドに紐づける）。
 5. 作成した下書きを ID で読み直し、宛先・件名・本文が一致することを確認する。

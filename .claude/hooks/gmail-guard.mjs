@@ -11,10 +11,14 @@
 
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 const mode = process.argv[2] === "post" ? "post" : "pre";
-const projectDir = process.env.CLAUDE_PROJECT_DIR || process.cwd();
-const dataDir = path.join(projectDir, "sales", "data");
+// リポジトリ位置はスクリプト自身の場所から求める（作業ディレクトリに依存しない）
+const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
+// 営業データ: SALES_DATA_DIR > 隣接の非公開リポジトリ mare-sales-data/data > sales/data
+const sibling = path.resolve(repoRoot, "..", "mare-sales-data");
+const dataDir = process.env.SALES_DATA_DIR || (fs.existsSync(sibling) ? path.join(sibling, "data") : path.join(repoRoot, "sales", "data"));
 const auditPath = path.join(dataDir, "audit-log.jsonl");
 const pipelinePath = path.join(dataDir, "pipeline.json");
 
