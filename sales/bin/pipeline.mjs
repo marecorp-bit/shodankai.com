@@ -127,7 +127,8 @@ switch (cmd) {
   case "check-dup": {
     const email = (args[0] || "").toLowerCase();
     const domain = email.split("@")[1];
-    const hits = db.companies.filter((c) => (c.emails || []).some((e) => e.toLowerCase() === email || e.toLowerCase().split("@")[1] === domain));
+    const CONTACTED = ["draft_saved", "sent", "replied", "meeting", "followup_draft_saved"];
+    const hits = db.companies.filter((c) => CONTACTED.includes(c.status) && (c.emails || []).some((e) => e.toLowerCase() === email || e.toLowerCase().split("@")[1] === domain));
     if (!hits.length) console.log("既存の接触記録はありません");
     else hits.forEach((c) => console.log(`重複の可能性: ${row(c)}`));
     process.exit(hits.length ? 3 : 0);

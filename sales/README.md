@@ -9,7 +9,7 @@ Claude Code のサブエージェント・スキル・Gmail コネクタで、�
   settings.json                 Gmail 送信系ツールの拒否 + 安全ガードフック登録
   hooks/gmail-guard.mjs         Gmail 許可リスト方式のガード（送信/転送/削除をブロック、宛先・重複・未記入チェック、操作ログ）
   agents/                       company-researcher / sales-strategist / email-writer / gmail-manager / sales-manager
-  skills/sales-outreach/        調査→分類→文面→（承認）→下書き
+  skills/sales-outreach/        調査→分類→文面→機械チェック→下書き（自動）
   skills/sales-inbox/           返信確認・フォローアップ・進捗
 sales/
   knowledge/                    サービス説明・文面ガイドライン（git 管理）
@@ -22,7 +22,7 @@ sales/
 | 対策 | 実装 |
 |---|---|
 | 自動送信の禁止 | フックが Gmail ツールを許可リストで判定（検索・閲覧・下書きのみ可）。名前に send/forward/delete/filter 等を含むツールは常にブロック。`permissions.deny` でも二重に拒否 |
-| 人間の承認 | sales-outreach スキルで下書き保存前に宛先・本文を提示し、承認を得る |
+| 人間の承認 | 下書き保存までは自動（担当者方針 2026-11-17）。送信は必ず担当者が Gmail 上で内容と宛先を確認して手動で行う |
 | 宛先確認 | To は1件のみ、BCC 禁止、形式チェック、調査で確認した公開アドレスとの照合 |
 | 重複防止 | 接触済みのアドレス・ドメインへの新規下書きをブロック（フォローアップは allow_followup で個別に許可） |
 | 未記入の防止 | `{{…}}` / 【要記入】 / TODO が残る下書きをブロック |
