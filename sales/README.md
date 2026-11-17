@@ -36,3 +36,13 @@ sales/
   隣に無い場合のみ `sales/data/`（git 管理外）に保存される。環境変数 `SALES_DATA_DIR` で上書き可。
 - 新しいセッションでは shodankai.com と mare-sales-data の両方を選択すること。作業後は mare-sales-data をコミット・プッシュして保存する。
 - Gmail コネクタのツール名は `mcp__Gmail__*`。コネクタ側でツールが増えた場合は許可リスト方式のフックが自動でブロックする。
+
+## 動作確認の記録
+### フェーズ2（Gmail 接続テスト）2026-11-17 完了
+- 接続アカウント: 会社の Google Workspace アカウント（withmare.jp）
+- `permissions.deny` により送信・転送・返信送信・削除・ラベル系ツールがツール一覧から除外されることを確認
+- PreToolUse/PostToolUse フックが実際の Gmail 呼び出しで発火し、監査ログに記録されることを確認
+- 自分宛てテスト下書きを作成 → `get_draft` で宛先・件名・本文を検証 → 担当者が Gmail 上で確認・手動削除
+- 既知の注意点: クラウドセッションでは作業ディレクトリが切り替わり、リポジトリの `.claude/settings.json` が
+  読み込まれないことがある。そのため `~/.claude/settings.json` にも同じ設定（フックは絶対パス・fail-closed）を
+  入れる。新しいコンテナで自動的に入るよう、環境のセットアップスクリプトで生成する（`sales/bin/install-guard.sh`）。
