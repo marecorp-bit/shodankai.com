@@ -13,6 +13,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { approvalHash } from "../../sales/bin/approve.mjs";
 
 const mode = process.argv[2] === "post" ? "post" : "pre";
 // リポジトリ位置はスクリプト自身の場所から求める（作業ディレクトリに依存しない）
@@ -211,32 +212,62 @@ function sendsToday() {
 function checkSend(toolName, input) {
   const policy = loadSendPolicy();
   if (policy.mode === "off") block("送信ポリシーが off です（config/send-policy.json）。送信は担当者が Gmail 上で行ってください。", toolName, input);
-  if (policy.mode !== "test") block(`送信ポリシーのモード "${policy.mode}" は未対応です。`, toolName, input);
+  if (!["test", "approved"].includes(policy.mode)) block(`送信ポリシーのモード "${policy.mode}" は未対応です。`, toolName, input);
   // draftId 指定時は to/cc/bcc 等が無視され「下書きの宛先」にそのまま送信される。
   // フックからは下書きの実際の宛先を検証できないため、draftId による送信は常にブロックする。
   if (Object.keys(input).some((k) => /draft/i.test(k))) {
     block("下書きID(draftId)指定の送信は禁止です（実際の宛先を検証できないため）。宛先・件名・本文を明示して送信してください。", toolName, input);
   }
-  const allowed = (policy.allowed_recipients || []).map((a) => String(a).toLowerCase());
   const rcpt = collectRecipients(input);
   if (rcpt.to.length !== 1) block("送信の宛先(To)は1件のみです。", toolName, input);
-  if (rcpt.cc.length || rcpt.bcc.length) block("テスト送信では CC/BCC は使用できません。", toolName, input);
+  if (rcpt.cc.length || rcpt.bcc.length) block("送信では CC/BCC は使用できません。", toolName, input);
   const to = rcpt.to[0].toLowerCase();
   if (!STRICT_EMAIL_RE.test(to)) block(`宛先の形式が不正です: ${to}`, toolName, input);
-  if (!allowed.includes(to)) block(`テストモードでは許可リスト外の宛先には送信できません: ${to}`, toolName, input);
-  const prefix = policy.require_subject_prefix || "";
-  if (prefix && !String(input.subject || "").startsWith(prefix)) block(`テスト送信の件名は「${prefix}」で始めてください。`, toolName, input);
   if (/\{\{[^}]*\}\}|【要記入】|＜要記入＞|TODO/.test(allText(input))) block("未記入のプレースホルダが残っています。", toolName, input);
-  if (input.attachments && input.attachments.length) block("テスト送信では添付ファイルは使用できません。", toolName, input);
+  if (input.attachments && input.attachments.length) block("送信では添付ファイルは使用できません。", toolName, input);
+  if (input.includeSignature) block("includeSignature は使用できません（承認した本文の後に署名が付加され、内容が変わるため）。", toolName, input);
+  if (input.htmlBody) block("送信は本文(body)のみで行ってください（htmlBody は承認照合ができないため不可）。", toolName, input);
   const cap = Number(policy.max_sends_per_day || 0);
   if (cap > 0 && sendsToday() >= cap) block(`本日の送信上限（${cap}件）に達しました。`, toolName, input);
-  return { to, mode: policy.mode };
+
+  // (1) テスト宛先: 本人所有の許可リスト宛て・件名プレフィックス付きのみ
+  const allowed = (policy.allowed_recipients || []).map((a) => String(a).toLowerCase());
+  const prefix = policy.require_subject_prefix || "";
+  if (allowed.includes(to)) {
+    if (prefix && !String(input.subject || "").startsWith(prefix)) block(`テスト送信の件名は「${prefix}」で始めてください。`, toolName, input);
+    return { to, mode: "test" };
+  }
+  if (policy.mode !== "approved") block(`テストモードでは許可リスト外の宛先には送信できません: ${to}`, toolName, input);
+
+  // (2) 承認制: approvals.json の「宛先+件名+本文」ハッシュと完全一致・未使用・有効期限内のみ
+  const apPath = path.join(dataDir, "approvals.json");
+  let db;
+  try { db = JSON.parse(fs.readFileSync(apPath, "utf8")); } catch { db = { approvals: [] }; }
+  const h = approvalHash(to, input.subject, input.body);
+  const now = new Date();
+  const forTo = db.approvals.filter((a) => a.to === to);
+  const matches = forTo.filter((a) => a.hash === h);
+  if (!matches.length) {
+    block(forTo.length ? `承認済みの文面と内容が一致しません（宛先 ${to}）。承認後に文面が変わった場合は再承認が必要です。`
+                       : `この宛先への送信承認がありません: ${to}`, toolName, input);
+  }
+  const usable = (a) => !a.revoked_at && !a.used_at && new Date(a.expires_at) >= now;
+  const ap = matches.find(usable);
+  if (!ap) {
+    const last = matches[matches.length - 1];
+    const why = last.revoked_at ? "取り消されています" : last.used_at ? `使用済みです（${last.used_at}）。同じメールの再送はできません` : "期限切れです";
+    block(`この文面の承認は${why}（${last.id}）。`, toolName, input);
+  }
+  // 1回限り: 送信前に使用済みにする（再試行・二重送信を防ぐ）
+  ap.used_at = now.toISOString();
+  fs.writeFileSync(apPath, JSON.stringify(db, null, 2) + "\n");
+  return { to, mode: "approved", approval_id: ap.id, company_id: ap.company_id };
 }
 
 // ---- PreToolUse 判定 ----
 if (shortName === "send_message") {
   const r = checkSend(toolName, input);
-  audit({ phase: "pre", decision: "allowed", tool: toolName, to: [r.to], send_mode: r.mode, subject: String(input.subject || "").slice(0, 80) });
+  audit({ phase: "pre", decision: "allowed", tool: toolName, to: [r.to], send_mode: r.mode, approval_id: r.approval_id, company_id: r.company_id, subject: String(input.subject || "").slice(0, 80) });
   process.exit(0);
 }
 if (DANGEROUS_WORDS.some((w) => shortName.includes(w))) {
