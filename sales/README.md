@@ -68,3 +68,7 @@ sales/
 - 同じ文面の有効な承認の二重登録は不可。htmlBody・includeSignature・draftId・CC/BCC・添付は不可。
 - 本人アカウントでの実地検証（2026-11-20）: 承認なし→ブロック／1文字変更→ブロック／承認どおり→送信成功／再送→ブロック。
 - 承認の取消: `node sales/bin/approve.mjs revoke <id>`。全面停止: send-policy.json の mode を "off"。
+
+### 毎朝の自動ルーティン（2026-11-21 担当者依頼）
+- スキル `daily-prospecting`：候補リストから1日5社を選び、公式サイト取得（`sales/bin/fetch-site.mjs`）→ 調査 → 分類 → 文面 → Gmail 下書き保存 → 日次レポート（`mare-sales-data/data/reports/`）。送信はしない。
+- スケジュールタスク「毎朝の営業下書き」が毎朝このセッションに指示を送る。
