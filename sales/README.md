@@ -72,3 +72,9 @@ sales/
 ### 毎朝の自動ルーティン（2026-11-21 担当者依頼）
 - スキル `daily-prospecting`：候補リストから1日5社を選び、公式サイト取得（`sales/bin/fetch-site.mjs`）→ 調査 → 分類 → 文面 → Gmail 下書き保存 → 日次レポート（`mare-sales-data/data/reports/`）。送信はしない。
 - スケジュールタスク「毎朝の営業下書き」が毎朝このセッションに指示を送る。
+
+### LINE 通知（2026-11-22）
+- LINE公式アカウント「MARE営業レポート」（担当者専用）から、毎朝の要約を broadcast で送る（`sales/bin/line-notify.mjs`）。
+- チャネルアクセストークンは環境のネットワークシークレット（api.line.me）に保存。コード・環境変数には置かない。
+- 安全策: 送信前にアカウントID（@800ltfiu）を照合し、友だち数が `config/line-notify.json` の max_followers を超えたら送らない。
+- お客様向けの「MARE（マレ）」アカウントは使わない。
