@@ -1,0 +1,52 @@
+{
+  "permissions": {
+    "deny": [
+      "mcp__Gmail__forward",
+      "mcp__Gmail__reply",
+      "mcp__Gmail__trash_message",
+      "mcp__Gmail__trash_thread",
+      "mcp__Gmail__delete_draft",
+      "mcp__Gmail__delete_label",
+      "mcp__Gmail__mark_message_spam",
+      "mcp__Gmail__mark_thread_spam",
+      "mcp__Gmail__create_label",
+      "mcp__Gmail__update_label",
+      "mcp__Gmail__label_message",
+      "mcp__Gmail__label_thread",
+      "mcp__Gmail__unlabel_message",
+      "mcp__Gmail__unlabel_thread",
+      "mcp__Gmail__update_message_labels",
+      "mcp__Gmail__apply_sensitive_message_label",
+      "mcp__Gmail__apply_sensitive_thread_label",
+      "mcp__Gmail__untrash_message",
+      "mcp__Gmail__untrash_thread",
+      "mcp__Gmail__unmark_message_spam",
+      "mcp__Gmail__unmark_thread_spam",
+      "mcp__Gmail__download_gmail_attachment"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "mcp__.*[Gg]mail.*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/gmail-guard.mjs\" pre"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "mcp__.*[Gg]mail.*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/gmail-guard.mjs\" post"
+          }
+        ]
+      }
+    ]
+  }
+}
