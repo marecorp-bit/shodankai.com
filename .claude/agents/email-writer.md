@@ -26,6 +26,7 @@ company_id: <id>
 type: initial|followup|reply
 to: <宛先。strategy.recommended_contact のメールアドレス>
 subject: <件名>
+attachments: tanaroku-uriba   # initial のみ必須。followup / reply では行ごと書かない
 service: 売場ノート|DX伴走支援
 facts_used: [使った事実と出典URL]
 status: ready_for_review
@@ -37,6 +38,7 @@ status: ready_for_review
 - 課題を断定していない: OK/NG
 - MARE紹介は2〜3文: OK/NG
 - 情報交換・面談がゴール: OK/NG
+- （initial のみ）attachments 行と「資料を添付」「LINE のリンク」の2文がある: OK/NG
 - 未確認の数値・実績を書いていない: OK/NG
 - 署名・配信停止案内あり: OK/NG
 -->
