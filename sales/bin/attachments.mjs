@@ -50,6 +50,17 @@ export function attachmentDigest(att) {
   return { sha256: crypto.createHash("sha256").update(Buffer.from(c, "base64")).digest("hex") };
 }
 
+// 固定 CC（社内共有用）: mare-sales-data/config/mail-defaults.json の { "fixed_cc": ["..."] }
+// ここに無いアドレスは CC にできない。ファイルが無ければ CC は一切不可。
+export function loadFixedCc() {
+  try {
+    const j = JSON.parse(fs.readFileSync(path.join(privateRoot, "config", "mail-defaults.json"), "utf8"));
+    return (Array.isArray(j.fixed_cc) ? j.fixed_cc : []).map((a) => String(a).toLowerCase().trim()).filter(Boolean);
+  } catch {
+    return [];
+  }
+}
+
 // 添付配列を許可リストと照合する。OK なら { ok:true, hashes:[...] }、NG なら { ok:false, reason }
 export function checkAttachments(list) {
   if (!list || !list.length) return { ok: true, hashes: [] };

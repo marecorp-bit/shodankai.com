@@ -26,6 +26,7 @@ company_id: <id>
 type: initial|followup|reply
 to: <宛先。strategy.recommended_contact のメールアドレス>
 subject: <件名>
+cc: <../mare-sales-data/config/mail-defaults.json の fixed_cc をカンマ区切りで。ファイルが無い・空なら行ごと書かない>
 attachments: tanaroku-uriba   # initial のみ必須。followup / reply では行ごと書かない
 service: 売場ノート|DX伴走支援
 facts_used: [使った事実と出典URL]
