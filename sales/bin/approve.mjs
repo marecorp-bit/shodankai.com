@@ -9,12 +9,13 @@
 //       エージェントが自分の判断で承認を作ってはならない。
 //
 // 承認は「宛先 + 件名 + 本文」のハッシュで記録する。送信時にフック(gmail-guard)が同じハッシュを照合し、
-// 1文字でも違えば送信をブロックする。承認は1回限り（送信で使用済みになる）・有効期限7日。
+// 1文字でも違えば送信をブロックする。添付がある場合は添付ファイルの内容（sha256）も照合対象。承認は1回限り（送信で使用済みになる）・有効期限7日。
 
 import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
 import { fileURLToPath } from "node:url";
+import { hashesForNames, loadFixedCc } from "./attachments.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const sibling = path.resolve(here, "..", "..", "..", "mare-sales-data");
@@ -23,8 +24,16 @@ const file = path.join(dataDir, "approvals.json");
 const auditPath = path.join(dataDir, "audit-log.jsonl");
 
 export const normalize = (s) => String(s || "").replace(/\r\n?/g, "\n").replace(/[ \t]+\n/g, "\n").trim();
-export const approvalHash = (to, subject, body) =>
-  crypto.createHash("sha256").update(`${String(to).toLowerCase().trim()}\n${normalize(subject)}\n${normalize(body)}`).digest("hex");
+// attachmentHashes: 添付ファイル内容の sha256、cc: CC アドレス。どちらも無い場合は従来と同じハッシュになる。
+export const approvalHash = (to, subject, body, attachmentHashes = [], cc = []) =>
+  crypto
+    .createHash("sha256")
+    .update(
+      `${String(to).toLowerCase().trim()}\n${normalize(subject)}\n${normalize(body)}` +
+        (attachmentHashes.length ? `\nattachments:${[...attachmentHashes].sort().join(",")}` : "") +
+        (cc.length ? `\ncc:${cc.map((a) => String(a).toLowerCase().trim()).sort().join(",")}` : "")
+    )
+    .digest("hex");
 
 const load = () => {
   try { return JSON.parse(fs.readFileSync(file, "utf8")); } catch { return { approvals: [] }; }
@@ -44,7 +53,8 @@ export function parseEmailFile(p) {
     if (kv) fm[kv[1]] = kv[2].replace(/\s+#.*$/, "").trim();
   }
   const body = m[2].split("<!-- self-check")[0];
-  return { company_id: fm.company_id, type: fm.type, to: fm.to, subject: fm.subject, body: normalize(body) };
+  const list = (v) => (v || "").split(",").map((x) => x.trim()).filter(Boolean);
+  return { company_id: fm.company_id, type: fm.type, to: fm.to, subject: fm.subject, body: normalize(body), attachments: list(fm.attachments), cc: list(fm.cc).map((a) => a.toLowerCase()) };
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1])) {
@@ -58,20 +68,25 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.a
     const e = parseEmailFile(p);
     if (!e.to || !e.subject || !e.body) die("to / subject / 本文のいずれかが空です");
     if (/\{\{[^}]*\}\}|【要記入】|TODO/.test(e.subject + e.body)) die("未記入のプレースホルダが残っています");
-    const h0 = approvalHash(e.to, e.subject, e.body);
+    let attHashes = [];
+    try { attHashes = hashesForNames(e.attachments); } catch (err) { die(err.message); }
+    const fixedCc = loadFixedCc();
+    const badCc = e.cc.filter((a) => !fixedCc.includes(a));
+    if (badCc.length) die(`固定 CC（config/mail-defaults.json）に無いアドレスは CC にできません: ${badCc.join(", ")}`);
+    const h0 = approvalHash(e.to, e.subject, e.body, attHashes, e.cc);
     const dup = db.approvals.find((a) => a.hash === h0 && !a.used_at && !a.revoked_at && new Date(a.expires_at) >= new Date());
     if (dup) die(`同じ文面の有効な承認が既にあります（${dup.id}）。二重送信防止のため追加できません。`);
     const id = "ap_" + crypto.randomBytes(4).toString("hex");
     const now = new Date();
     const rec = {
       id, company_id: e.company_id, type: e.type, to: e.to.toLowerCase(), subject: e.subject,
-      hash: approvalHash(e.to, e.subject, e.body), source_file: path.basename(p), approved_by: by,
+      hash: h0, attachments: e.attachments, cc: e.cc, source_file: path.basename(p), approved_by: by,
       approved_at: now.toISOString(), expires_at: new Date(now.getTime() + 7 * 86400000).toISOString(), used_at: null,
     };
     db.approvals.push(rec);
     save(db);
     audit({ action: "approve", id, company_id: e.company_id, to: rec.to, subject: e.subject, by });
-    console.log(`承認を登録しました: ${id}（宛先 ${rec.to}／件名 ${e.subject}／期限 ${rec.expires_at.slice(0, 10)}）`);
+    console.log(`承認を登録しました: ${id}（宛先 ${rec.to}／件名 ${e.subject}／CC ${e.cc.join(",") || "なし"}／添付 ${e.attachments.join(",") || "なし"}／期限 ${rec.expires_at.slice(0, 10)}）`);
   } else if (cmd === "list") {
     for (const a of db.approvals) {
       const st = a.revoked_at ? "取消" : a.used_at ? "使用済み" : new Date(a.expires_at) < new Date() ? "期限切れ" : "有効";

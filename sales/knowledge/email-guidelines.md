@@ -22,6 +22,20 @@
 7. 断りやすい一文
 8. 署名（../mare-sales-data/config/sender.md の内容）＋配信停止の案内
 
+## 初回メールの添付資料と LINE 窓口
+- 初回メール（type: initial）には、サービス紹介資料（PDF）を**必ず添付**する。frontmatter に `attachments: tanaroku-uriba` を書く。
+  フォローアップ・返信には添付しない（担当者の指示がある場合を除く）。
+- 添付できるのは許可リスト（mare-sales-data/config/attachments.json）に登録した資料だけ。登録名・ファイル名は
+  `node sales/bin/attachments.mjs list` で確認する。資料が差し替わったら担当者が `attachments.mjs add` で登録し直す。
+- 本文の「MARE で手伝えること」の後に、次の2点を入れる（スマホで資料を開くと QR を読めないため、リンクも本文に書く）。
+  - 「サービスのご紹介資料（PDF）を添付いたしました。」
+  - 「LINE でもご相談を承っております：https://line.me/R/ti/p/@324eahss」
+- URL は `https://` から書く（ドメインだけだと Gmail が自動でリダイレクト URL に変える）。
+
+## 社内共有の CC
+- 営業メール（初回・フォローアップ・返信）には、`mare-sales-data/config/mail-defaults.json` の `fixed_cc`（社内メンバー）を CC に入れる。
+- それ以外のアドレスを CC にしない（フックがブロック）。BCC は使わない。
+
 ## 件名
 - 25〜35字程度。相手の事業に触れる。煽り文句・【】の多用は禁止。
 - 例：「〇〇様の道の駅向け納品業務について、情報交換のお願い」

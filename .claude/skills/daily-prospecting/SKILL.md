@@ -13,6 +13,8 @@ description: MARE営業の毎朝ルーティン。営業先候補から5社を�
 2. 送信防止の仕組みが有効: `grep -c mcp__Gmail__ ~/.claude/settings.json` が 20 以上。無ければ `bash $S/sales/bin/install-guard.sh` を実行して再確認。
 3. Gmail ツール（`mcp__Gmail__search_threads` など）が使える。使えなければ「Gmail コネクタ未接続のため停止」と報告。
 4. `$D/config/sender.md` に【要記入】が無い。
+5. `node $S/sales/bin/attachments.mjs list` で `tanaroku-uriba` が OK（初回メールの添付資料）。
+6. `$D/config/mail-defaults.json` の `fixed_cc` を確認（社内共有用の CC。無ければ CC なしで進め、報告に書く）。
 
 ## 1. 今日の5社を選ぶ
 - 候補の元: `$D/data/prospects-*.md`（新しい順）。
@@ -30,7 +32,9 @@ description: MARE営業の毎朝ルーティン。営業先候補から5社を�
    - D（営業お断り・公開メール無し・不適合）→ メールは作らない。pipeline に登録し `set-status <id> on_hold --note 理由`。
    - A/B/C → email-writer を呼ぶ。保存先 `$D/data/emails/<id>-initial-YYYYMMDD.md`。売場ノート提案では mare-services.md の承認済み導入事例（カネツル砂子商店様）の文言をそのまま使うこと、屋号は「MARE」（株式会社を付けない）と明記。
 5. 機械チェック: 自己チェック全項目OK／宛先が調査結果の `contact.emails`（公式サイトで確認できたもの）に含まれる／`check-dup` で接触済みでない。満たさなければ下書きを作らず理由を報告。
-6. 下書き保存: `mcp__Gmail__create_draft`（to は1件、本文は文面ファイルの本文そのまま、htmlBody・署名追加なし）。保存後 `get_draft` で宛先・件名を確認。
+6. 下書き保存: `mcp__Gmail__create_draft`（to は1件、cc は文面ファイルの `cc`＝固定 CC、本文は文面ファイルの本文そのまま、htmlBody・署名追加なし）。
+   初回メールは資料を必ず添付: `node $S/sales/bin/attachments.mjs ref tanaroku-uriba` の出力をそのまま `attachments` に渡す。
+   `ref` が失敗（未登録・ファイル変更）したら下書きを作らず、その旨を報告する。保存後 `get_draft` で宛先・CC・件名・添付を確認。
 7. pipeline: `upsert <id> '{"name":..,"website":..,"emails":[..],"classification":..,"classification_reason":..,"subject":..,"next_action":"担当者がGmailで確認→送信OKの指示"}'` → `set-status <id> draft_saved --draft-id <ID>`。文面ファイルの status を `draft_saved  # draft_id: <ID>` に更新。
 
 ## 3. 保存と報告
